@@ -3,6 +3,10 @@ use std::{
     process::exit,
 };
 
+mod constants;
+mod page;
+mod row;
+
 const LOGO: &str = r#"
  __  __     ______     ______     _____     ______   
 /\ \_\ \   /\  __ \   /\  == \   /\  __-.  /\  == \  
@@ -74,13 +78,28 @@ enum MetaCommandHandleError {
 fn handle_sql_command(command: &str) {
     match prepare_statement(command) {
         Ok(statement) => execute_statement(&statement),
-        Err(e) => print_and_flush(&format!("Error: {}", e)),
+        Err(e) => print_and_flush(&format!("Error: {}\n", e)),
     }
 }
 
+/// Parse raw command into Statement
 fn prepare_statement(command: &str) -> Result<Statement, String> {
+    let mut parts = command.split_whitespace();
+    let command = parts.next().expect("Unreachable");
+    let args = parts.collect::<Vec<&str>>();
+
     match command {
-        "insert" => Ok(Statement::Insert),
+        "insert" => {
+            if args.len() != 3 {
+                Err(String::from("Invalid number of arguments"))
+            } else {
+                Ok(Statement::Insert(row(
+                    args[0].parse().unwrap(),
+                    args[1],
+                    args[2],
+                )))
+            }
+        }
         "select" => Ok(Statement::Select),
         _ => Err(String::from(&format!(
             "Unrecognized keyword at start of {}\n",
@@ -89,9 +108,12 @@ fn prepare_statement(command: &str) -> Result<Statement, String> {
     }
 }
 
+/// Executes a given statement
 fn execute_statement(statement: &Statement) {
     match statement {
-        Statement::Insert => print_and_flush("Executing insert statement\n"),
+        Statement::Insert(row) => {
+            print_and_flush(&format!("Executing insert statement\n{:?}\n", row))
+        }
         Statement::Select => print_and_flush("Executing select statement\n"),
     }
 }
@@ -102,6 +124,23 @@ fn print_and_flush(s: &str) {
 }
 
 enum Statement {
-    Insert,
+    Insert(row::Row),
     Select,
+}
+
+fn row(id: i32, username: &str, email: &str) -> row::Row {
+    row::Row {
+        id,
+        username: str_boxed_array(username),
+        email: str_boxed_array(email),
+    }
+}
+
+fn str_boxed_array<const SIZE: usize>(s: &str) -> Box<[u8; SIZE]> {
+    let truncated = &s[..std::cmp::min(s.len(), SIZE)];
+
+    let mut boxed_array = Box::new([0; SIZE]);
+    boxed_array.copy_from_slice(truncated.as_bytes());
+
+    boxed_array
 }
