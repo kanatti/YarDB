@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to REPL",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/target/debug/yardb",
+            "pid": "${command:pickProcess}"
+        }
+    ]
+}

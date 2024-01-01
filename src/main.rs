@@ -3,9 +3,12 @@ use std::{
     process::exit,
 };
 
+use table::Table;
+
 mod constants;
 mod page;
 mod row;
+mod table;
 
 const LOGO: &str = r#"
  __  __     ______     ______     _____     ______   
@@ -25,6 +28,8 @@ fn main() {
 }
 
 fn repl() {
+    let mut table = Table::new();
+
     loop {
         print_and_flush("yardb> ");
 
@@ -48,7 +53,7 @@ fn repl() {
                 }
             }
         } else {
-            handle_sql_command(command);
+            handle_sql_command(command, &mut table);
         }
     }
 }
@@ -64,6 +69,7 @@ fn handle_meta_command(command: &str) -> Result<(), MetaCommandHandleError> {
             print_and_flush(".help\n");
             print_and_flush("select\n");
             print_and_flush("insert\n");
+            print_and_flush("stats\n");
             Ok(())
         }
         _ => Err(MetaCommandHandleError::UnRecognizedCommand),
@@ -75,9 +81,9 @@ enum MetaCommandHandleError {
     UnRecognizedCommand,
 }
 
-fn handle_sql_command(command: &str) {
+fn handle_sql_command(command: &str, table: &mut Table) {
     match prepare_statement(command) {
-        Ok(statement) => execute_statement(&statement),
+        Ok(statement) => execute_statement(&statement, table),
         Err(e) => print_and_flush(&format!("Error: {}\n", e)),
     }
 }
@@ -101,6 +107,7 @@ fn prepare_statement(command: &str) -> Result<Statement, String> {
             }
         }
         "select" => Ok(Statement::Select),
+        "stats" => Ok(Statement::Stats),
         _ => Err(String::from(&format!(
             "Unrecognized keyword at start of {}\n",
             command
@@ -109,12 +116,11 @@ fn prepare_statement(command: &str) -> Result<Statement, String> {
 }
 
 /// Executes a given statement
-fn execute_statement(statement: &Statement) {
+fn execute_statement(statement: &Statement, table: &mut Table) {
     match statement {
-        Statement::Insert(row) => {
-            print_and_flush(&format!("Executing insert statement\n{:?}\n", row))
-        }
-        Statement::Select => print_and_flush("Executing select statement\n"),
+        Statement::Insert(row) => table.insert_row(row),
+        Statement::Select => table.select_rows(),
+        Statement::Stats => table.stats(),
     }
 }
 
@@ -126,6 +132,7 @@ fn print_and_flush(s: &str) {
 enum Statement {
     Insert(row::Row),
     Select,
+    Stats,
 }
 
 fn row(id: i32, username: &str, email: &str) -> row::Row {
@@ -137,10 +144,11 @@ fn row(id: i32, username: &str, email: &str) -> row::Row {
 }
 
 fn str_boxed_array<const SIZE: usize>(s: &str) -> Box<[u8; SIZE]> {
-    let truncated = &s[..std::cmp::min(s.len(), SIZE)];
+    let limit = std::cmp::min(s.len(), SIZE);
+    let truncated = &s[..limit];
 
     let mut boxed_array = Box::new([0; SIZE]);
-    boxed_array.copy_from_slice(truncated.as_bytes());
+    boxed_array[..limit].copy_from_slice(truncated.as_bytes());
 
     boxed_array
 }

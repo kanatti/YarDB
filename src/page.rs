@@ -1,4 +1,4 @@
-use crate::constants::{EMAIL_SIZE, PAGE_SIZE, USER_NAME_SIZE};
+use crate::constants::{PAGE_SIZE, USER_NAME_SIZE};
 use crate::row::Row;
 
 pub struct Page {
@@ -6,6 +6,12 @@ pub struct Page {
 }
 
 impl Page {
+    pub fn new() -> Self {
+        Self {
+            data: Box::new([0; PAGE_SIZE]),
+        }
+    }
+
     pub fn write_int(&mut self, value: i32, offset: usize) -> usize {
         let bytes = value.to_be_bytes();
         self.data[offset..offset + 4].copy_from_slice(&bytes);
@@ -27,27 +33,28 @@ impl Page {
         boxed_array
     }
 
-    /// Rows are compacted into pages.
+    /// Inserts a compacted repr of row into the page.
     /// Current implementation keeps it very simple.
-    fn compact(&mut self, row: &Row) {
-        let mut offset = 0;
-
-        offset += self.write_int(row.id, offset);
-        offset += self.write_bytes(&row.username, offset);
-        offset += self.write_bytes(&row.email, offset);
+    pub fn insert_row(&mut self, row: &Row, mut offset: usize) {
+        offset = self.write_int(row.id, offset);
+        offset = self.write_bytes(&row.username, offset);
+        self.write_bytes(&row.email, offset);
     }
 
-    /// Rows are uncompacted from pages.
-    fn uncompact(&self, row: &mut Row) {
-        let mut offset = 0;
-
-        row.id = self.read_int(offset);
+    /// Fetch and uncompact row from the page
+    pub fn read_row(&self, mut offset: usize) -> Row {
+        let id = self.read_int(offset);
         offset += 4;
 
-        row.username = self.read_bytes(offset);
+        let username = self.read_bytes(offset);
         offset += USER_NAME_SIZE;
 
-        row.email = self.read_bytes(offset);
-        offset += EMAIL_SIZE;
+        let email = self.read_bytes(offset);
+
+        Row {
+            id,
+            username,
+            email,
+        }
     }
 }
