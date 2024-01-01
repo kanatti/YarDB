@@ -6,7 +6,13 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn new() -> Self {
+    pub fn new(data: &[u8; PAGE_SIZE]) -> Self {
+        Self {
+            data: Box::new(*data),
+        }
+    }
+
+    pub fn empty() -> Self {
         Self {
             data: Box::new([0; PAGE_SIZE]),
         }

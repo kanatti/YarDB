@@ -7,6 +7,7 @@ use table::Table;
 
 mod constants;
 mod page;
+mod pager;
 mod row;
 mod table;
 
@@ -28,7 +29,7 @@ fn main() {
 }
 
 fn repl() {
-    let mut table = Table::new();
+    let mut table = Table::new("test".to_owned());
 
     loop {
         print_and_flush("yardb> ");
@@ -46,7 +47,7 @@ fn repl() {
         }
 
         if command.starts_with(META_PREFIX) {
-            match handle_meta_command(command) {
+            match handle_meta_command(command, &mut table) {
                 Ok(_) => {}
                 Err(e) => {
                     print_and_flush(&format!("Error: {:?}\n", e));
@@ -58,9 +59,10 @@ fn repl() {
     }
 }
 
-fn handle_meta_command(command: &str) -> Result<(), MetaCommandHandleError> {
+fn handle_meta_command(command: &str, table: &mut Table) -> Result<(), MetaCommandHandleError> {
     match command {
         ".exit" => {
+            table.close();
             exit(0);
         }
         ".help" => {

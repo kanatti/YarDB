@@ -41,6 +41,7 @@ Build from source and run
 
 1. Add tests
 2. Better error handling
+3. Better logging setup
 
 ## Interesting things to try out
 
