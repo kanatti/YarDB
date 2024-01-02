@@ -16,7 +16,7 @@ impl Table {
     pub fn new(name: String) -> Self {
         let pager = Pager::new(&format!("{}.db", name));
 
-        let num_rows = fs::read_to_string(&format!("{}.meta", name))
+        let num_rows = fs::read_to_string(format!("{}.meta", name))
             .unwrap_or(String::from("0"))
             .parse()
             .unwrap();
@@ -55,7 +55,7 @@ impl Table {
     }
 
     pub fn close(&mut self) {
-        fs::write(&format!("{}.meta", self.name), self.num_rows.to_string()).unwrap();
+        fs::write(format!("{}.meta", self.name), self.num_rows.to_string()).unwrap();
 
         self.pager.close();
     }

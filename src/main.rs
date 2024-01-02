@@ -3,11 +3,14 @@ use std::{
     process::exit,
 };
 
+use ast::Statement;
 use table::Table;
 
+mod ast;
 mod constants;
 mod page;
 mod pager;
+mod parser;
 mod row;
 mod table;
 
@@ -92,37 +95,18 @@ fn handle_sql_command(command: &str, table: &mut Table) {
 
 /// Parse raw command into Statement
 fn prepare_statement(command: &str) -> Result<Statement, String> {
-    let mut parts = command.split_whitespace();
-    let command = parts.next().expect("Unreachable");
-    let args = parts.collect::<Vec<&str>>();
-
-    match command {
-        "insert" => {
-            if args.len() != 3 {
-                Err(String::from("Invalid number of arguments"))
-            } else {
-                Ok(Statement::Insert(row(
-                    args[0].parse().unwrap(),
-                    args[1],
-                    args[2],
-                )))
-            }
-        }
-        "select" => Ok(Statement::Select),
-        "stats" => Ok(Statement::Stats),
-        _ => Err(String::from(&format!(
-            "Unrecognized keyword at start of {}\n",
-            command
-        ))),
-    }
+    parser::parse(command)
 }
 
 /// Executes a given statement
 fn execute_statement(statement: &Statement, table: &mut Table) {
     match statement {
-        Statement::Insert(row) => table.insert_row(row),
-        Statement::Select => table.select_rows(),
-        Statement::Stats => table.stats(),
+        Statement::Insert(insert) => {
+            let row = get_row(insert.id, insert.name, insert.email);
+            table.insert_row(&row)
+        }
+        Statement::Select(_select) => table.select_rows(),
+        Statement::Stats(_stats) => table.stats(),
     }
 }
 
@@ -131,13 +115,7 @@ fn print_and_flush(s: &str) {
     io::stdout().flush().unwrap();
 }
 
-enum Statement {
-    Insert(row::Row),
-    Select,
-    Stats,
-}
-
-fn row(id: i32, username: &str, email: &str) -> row::Row {
+fn get_row(id: i32, username: &str, email: &str) -> row::Row {
     row::Row {
         id,
         username: str_boxed_array(username),
