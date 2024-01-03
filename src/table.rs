@@ -33,8 +33,12 @@ impl Table {
         let row_num = self.num_rows;
         let row_slot = self.row_slot(row_num);
 
-        let page = self.pager.get_page(row_slot.page_num);
-        page.borrow_mut().insert_row(row, row_slot.offset);
+        let page = &self.pager.get_page(row_slot.page_num);
+        {
+            let mut page_mutex = page.lock().unwrap();
+            let page = &mut *page_mutex;
+            page.insert_row(row, row_slot.offset);
+        }
 
         self.num_rows += 1;
     }
@@ -43,15 +47,23 @@ impl Table {
     pub fn select_rows(&mut self) {
         for row_num in 0..self.num_rows {
             let row_slot = self.row_slot(row_num);
-            let page = self.pager.get_page(row_slot.page_num);
-            let row = page.borrow().read_row(row_slot.offset);
+
+            let page = &self.pager.get_page(row_slot.page_num);
+            let row = {
+                let mut page_mutex = page.lock().unwrap();
+                let page = &mut *page_mutex;
+                page.read_row(row_slot.offset)
+            };
+
             println!("{}", row);
         }
     }
 
-    pub fn stats(&self) {
-        println!("Table has {} rows", self.num_rows);
-        println!("Table has {} pages", self.pager.page_count());
+    pub fn stats(&self) -> TableStats {
+        TableStats {
+            num_rows: self.num_rows,
+            num_pages: self.pager.page_count(),
+        }
     }
 
     pub fn close(&mut self) {
@@ -71,6 +83,11 @@ impl Table {
             offset: byte_offset,
         }
     }
+}
+
+pub struct TableStats {
+    pub num_rows: usize,
+    pub num_pages: usize,
 }
 
 struct RowSlot {

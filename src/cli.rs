@@ -99,7 +99,13 @@ fn execute_statement(statement: &Statement, table: &mut Table) {
             table.insert_row(&row)
         }
         Statement::Select(_select) => table.select_rows(),
-        Statement::Stats(_stats) => table.stats(),
+        Statement::Stats(_stats) => {
+            let stats = table.stats();
+            print_and_flush(&format!(
+                "Rows: {}, Pages: {}\n",
+                stats.num_rows, stats.num_pages
+            ));
+        }
     }
 }
 
