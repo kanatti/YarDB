@@ -3,16 +3,9 @@ use std::{
     process::exit,
 };
 
-use ast::Statement;
-use table::Table;
-
-mod ast;
-mod constants;
-mod page;
-mod pager;
-mod parser;
-mod row;
-mod table;
+use yardb::parser;
+use yardb::table::Table;
+use yardb::{ast::Statement, row};
 
 const LOGO: &str = r#"
  __  __     ______     ______     _____     ______   
