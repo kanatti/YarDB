@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::constants::{PAGE_SIZE, TABLE_MAX_PAGES};
 use crate::page::Page;
@@ -10,10 +10,10 @@ pub struct Pager {
     file: std::fs::File,
     file_size: u64,
     pages_in_file: u64,
-    pages: [Option<Arc<Mutex<Page>>>; TABLE_MAX_PAGES],
+    pages: [Option<Arc<RwLock<Page>>>; TABLE_MAX_PAGES],
 }
 
-const INIT: Option<Arc<Mutex<Page>>> = None;
+const INIT: Option<Arc<RwLock<Page>>> = None;
 
 impl Pager {
     pub fn new(filename: &str) -> Self {
@@ -45,7 +45,7 @@ impl Pager {
         self.pages.len()
     }
 
-    pub fn get_page(&mut self, page_num: usize) -> Arc<Mutex<Page>> {
+    pub fn get_page(&mut self, page_num: usize) -> Arc<RwLock<Page>> {
         if page_num > TABLE_MAX_PAGES {
             panic!("Tried to access page that does not exist");
         }
@@ -69,13 +69,13 @@ impl Pager {
                         Err(e) => panic!("{}", e),
                     }
 
-                    let new_page: Arc<Mutex<Page>> = Arc::new(Mutex::new(Page::new(bytes)));
+                    let new_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::new(bytes)));
 
                     self.pages[page_num] = Some(Arc::clone(&new_page));
 
                     new_page
                 } else {
-                    let new_page: Arc<Mutex<Page>> = Arc::new(Mutex::new(Page::empty()));
+                    let new_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::empty()));
 
                     self.pages[page_num] = Some(Arc::clone(&new_page));
 
@@ -95,7 +95,7 @@ impl Pager {
         }
     }
 
-    fn flush_page(file: &mut File, page: Arc<Mutex<Page>>, page_num: usize) {
+    fn flush_page(file: &mut File, page: Arc<RwLock<Page>>, page_num: usize) {
         let offset = page_num as u64 * 4096;
 
         match file.seek(std::io::SeekFrom::Start(offset)) {
@@ -104,7 +104,7 @@ impl Pager {
         }
 
         let data = {
-            let page = page.lock().unwrap();
+            let page = page.read().unwrap();
             page.data.clone()
         };
 

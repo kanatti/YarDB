@@ -98,7 +98,12 @@ fn execute_statement(statement: &Statement, table: &mut Table) {
             let row = get_row(insert.id, insert.name, insert.email);
             table.insert_row(&row)
         }
-        Statement::Select(_select) => table.select_rows(),
+        Statement::Select(_select) => {
+            let rows = table.select_rows();
+            for row in rows {
+                print_and_flush(&format!("{}\n", row));
+            }
+        }
         Statement::Stats(_stats) => {
             let stats = table.stats();
             print_and_flush(&format!(

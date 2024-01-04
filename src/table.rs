@@ -35,28 +35,29 @@ impl Table {
 
         let page = &self.pager.get_page(row_slot.page_num);
         {
-            let mut page_mutex = page.lock().unwrap();
-            let page = &mut *page_mutex;
+            let mut page = page.write().unwrap();
             page.insert_row(row, row_slot.offset);
         }
 
         self.num_rows += 1;
     }
 
-    // Select all rows from the table
-    pub fn select_rows(&mut self) {
+    pub fn select_rows(&mut self) -> Vec<Row> {
+        let mut rows = Vec::new();
+
         for row_num in 0..self.num_rows {
             let row_slot = self.row_slot(row_num);
 
             let page = &self.pager.get_page(row_slot.page_num);
             let row = {
-                let mut page_mutex = page.lock().unwrap();
-                let page = &mut *page_mutex;
+                let page = page.read().unwrap();
                 page.read_row(row_slot.offset)
             };
 
-            println!("{}", row);
+            rows.push(row);
         }
+
+        rows
     }
 
     pub fn stats(&self) -> TableStats {

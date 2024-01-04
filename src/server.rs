@@ -1,6 +1,6 @@
 use std::{
     io::{self, Write},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
@@ -25,12 +25,13 @@ async fn main() {
 
     let state = AppState {
         cluster_id: "1".to_string(),
-        table,
+        table: Mutex::new(table),
     };
 
     let app = Router::new()
         .route("/_health", get(health))
         .route("/stats", get(stats))
+        .route("/select", get(select))
         .with_state(Arc::new(state));
 
     print_and_flush("Listening on port 3050\n");
@@ -51,7 +52,8 @@ async fn health(State(state): State<Arc<AppState>>) -> (StatusCode, Json<ServerI
 }
 
 async fn stats(State(state): State<Arc<AppState>>) -> (StatusCode, Json<StatsResponse>) {
-    let table_stats = state.table.stats();
+    let table_stats = { state.table.lock().unwrap().stats() };
+
     (
         StatusCode::OK,
         Json(StatsResponse {
@@ -59,6 +61,21 @@ async fn stats(State(state): State<Arc<AppState>>) -> (StatusCode, Json<StatsRes
             num_pages: table_stats.num_pages,
         }),
     )
+}
+
+async fn select(State(state): State<Arc<AppState>>) -> (StatusCode, Json<Vec<RowResponse>>) {
+    let rows = { state.table.lock().unwrap().select_rows() };
+
+    let rows = rows
+        .into_iter()
+        .map(|row| RowResponse {
+            id: row.id,
+            username: String::from_utf8_lossy(row.username.as_slice()).to_string(), // TODO: Fix null \u0000
+            email: String::from_utf8_lossy(row.email.as_slice()).to_string(),
+        })
+        .collect();
+
+    (StatusCode::OK, Json(rows))
 }
 
 #[derive(Serialize)]
@@ -80,9 +97,16 @@ enum ClusterStatus {
     Red,
 }
 
+#[derive(Serialize)]
+struct RowResponse {
+    id: i32,
+    username: String,
+    email: String,
+}
+
 struct AppState {
     cluster_id: String,
-    table: Table,
+    table: Mutex<Table>,
 }
 
 fn print_and_flush(s: &str) {
